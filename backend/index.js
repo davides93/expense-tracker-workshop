@@ -17,8 +17,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connectivity
+    const dbResult = await db.query('SELECT 1 as status');
+    const dbStatus = dbResult.rows[0]?.status === 1 ? 'healthy' : 'unhealthy';
+    
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      database: dbStatus,
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({ 
+      status: 'error', 
+      timestamp: new Date().toISOString(),
+      error: 'Database connection failed',
+      uptime: process.uptime()
+    });
+  }
+});
+
+// Readiness check endpoint
+app.get('/ready', async (req, res) => {
+  try {
+    // Check if essential services are ready
+    await db.query('SELECT 1');
+    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ status: 'not ready', timestamp: new Date().toISOString() });
+  }
 });
 
 // API Routes

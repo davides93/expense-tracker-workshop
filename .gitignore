@@ -95,3 +95,8 @@ azurite-data/
 # Temporary files
 tmp/
 temp/
+
+# .NET build outputs
+bin/
+obj/
+*.user
