@@ -1,0 +1,107 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Database",
+            "type": "shell",
+            "command": "psql",
+            "args": [
+                "-h", "postgres",
+                "-U", "expense_user",
+                "-d", "expense_tracker",
+                "-f", "${workspaceFolder}/01-create-schema.sql"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Populate Database",
+            "type": "shell",
+            "command": "psql",
+            "args": [
+                "-h", "postgres",
+                "-U", "expense_user",
+                "-d", "expense_tracker",
+                "-f", "${workspaceFolder}/02-populate-data.sql"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "dependsOn": "Setup Database"
+        },
+        {
+            "label": "Run Test Queries",
+            "type": "shell",
+            "command": "psql",
+            "args": [
+                "-h", "postgres",
+                "-U", "expense_user",
+                "-d", "expense_tracker",
+                "-f", "${workspaceFolder}/03-useful-queries.sql"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Connect to Database",
+            "type": "shell",
+            "command": "psql",
+            "args": [
+                "-h", "postgres",
+                "-U", "expense_user",
+                "-d", "expense_tracker"
+            ],
+            "group": "none",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Reset Database",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "psql -h postgres -U expense_user -d expense_tracker -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' && psql -h postgres -U expense_user -d expense_tracker -f ${workspaceFolder}/01-create-schema.sql && psql -h postgres -U expense_user -d expense_tracker -f ${workspaceFolder}/02-populate-data.sql"
+            ],
+            "group": "none",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

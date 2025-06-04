@@ -1,0 +1,45 @@
+{
+  "name": "Expense Tracker Database",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "username": "vscode",
+      "userUid": "automatic",
+      "userGid": "automatic"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-json",
+        "ms-postgresql.postgresql",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-markdown"
+      ],
+      "settings": {
+        "postgresql.connections": [
+          {
+            "label": "Expense Tracker DB",
+            "host": "postgres",
+            "user": "expense_user",
+            "password": "expense_password",
+            "database": "expense_tracker",
+            "port": 5432
+          }
+        ]
+      }
+    }
+  },
+  "forwardPorts": [5432],
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteUser": "vscode"
+}
