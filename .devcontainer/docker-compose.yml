@@ -33,3 +33,45 @@ services:
 
 volumes:
   postgres-data:
+
+---
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-18-bullseye
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    network_mode: service:postgres
+    depends_on:
+      - postgres
+      - azurite
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: expense_tracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    restart: unless-stopped
+    ports:
+      - "10000:10000"  # Blob service
+      - "10001:10001"  # Queue service
+      - "10002:10002"  # Table service
+    volumes:
+      - azurite-data:/data
+    command: >
+      azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0
+      --location /data --debug /data/debug.log
+
+volumes:
+  postgres-data:
+  azurite-data:

@@ -1,45 +1,73 @@
 {
-  "name": "Expense Tracker Database",
+  "name": "Expense Tracker Development Environment",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/workspace",
-  "shutdownAction": "stopCompose",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true,
-      "configureZshAsDefaultShell": true,
-      "installOhMyZsh": true,
-      "username": "vscode",
-      "userUid": "automatic",
-      "userGid": "automatic"
-    },
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    }
+      "nodeGypDependencies": true,
+      "version": "18"
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
+
   "customizations": {
     "vscode": {
       "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
         "ms-vscode.vscode-json",
+        "formulahendry.auto-rename-tag",
+        "ms-vsliveshare.vsliveshare",
+        "ms-azuretools.vscode-azurite",
         "ms-postgresql.postgresql",
-        "redhat.vscode-yaml",
-        "ms-vscode.vscode-markdown"
+        "ms-vscode.vscode-react-native",
+        "msjsdiag.vscode-react-native"
       ],
       "settings": {
-        "postgresql.connections": [
-          {
-            "label": "Expense Tracker DB",
-            "host": "postgres",
-            "user": "expense_user",
-            "password": "expense_password",
-            "database": "expense_tracker",
-            "port": 5432
-          }
-        ]
+        "typescript.preferences.quoteStyle": "single",
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        }
       }
     }
   },
-  "forwardPorts": [5432],
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "remoteUser": "vscode"
+
+  "forwardPorts": [3000, 5432, 10000, 10001, 10002, 8081],
+  "portsAttributes": {
+    "3000": {
+      "label": "React Native Metro",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL"
+    },
+    "10000": {
+      "label": "Azurite Blob"
+    },
+    "10001": {
+      "label": "Azurite Queue"
+    },
+    "10002": {
+      "label": "Azurite Table"
+    },
+    "8081": {
+      "label": "React Native Dev Server"
+    }
+  },
+
+  "postCreateCommand": "npm install -g @react-native-community/cli expo-cli && npm install -g yarn",
+  
+  "remoteUser": "node",
+
+  "containerEnv": {
+    "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/expense_tracker",
+    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;QueueEndpoint=http://localhost:10001/devstoreaccount1;TableEndpoint=http://localhost:10002/devstoreaccount1;",
+    "NODE_ENV": "development"
+  }
 }
