@@ -101,7 +101,7 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
       </div>
 
       {error && (
-        <div className="error">
+        <div className="error" role="alert">
           ❌ {error}
         </div>
       )}
@@ -109,8 +109,9 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
       <form onSubmit={handleSubmit}>
         <div className="grid grid-2">
           <div className="form-group">
-            <label className="form-label">💰 Amount *</label>
+            <label className="form-label" htmlFor="amount">💰 Amount *</label>
             <input
+              id="amount"
               type="number"
               name="amount"
               value={formData.amount}
@@ -124,8 +125,9 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">💱 Currency</label>
+            <label className="form-label" htmlFor="currency">💱 Currency</label>
             <select
+              id="currency"
               name="currency"
               value={formData.currency}
               onChange={handleChange}
@@ -140,8 +142,9 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
 
         <div className="grid grid-2">
           <div className="form-group">
-            <label className="form-label">📅 Date *</label>
+            <label className="form-label" htmlFor="expense_date">📅 Date *</label>
             <input
+              id="expense_date"
               type="date"
               name="expense_date"
               value={formData.expense_date}
@@ -152,8 +155,9 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">🏷️ Category</label>
+            <label className="form-label" htmlFor="category_id">🏷️ Category</label>
             <select
+              id="category_id"
               name="category_id"
               value={formData.category_id}
               onChange={handleChange}
@@ -170,8 +174,9 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">📝 Description</label>
+          <label className="form-label" htmlFor="description">📝 Description</label>
           <input
+            id="description"
             type="text"
             name="description"
             value={formData.description}
@@ -186,6 +191,7 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
             type="submit"
             className="btn btn-success"
             disabled={loading}
+            aria-busy={loading}
             style={{ fontSize: '1.1rem', padding: '15px 40px' }}
           >
             {loading ? '⏳ Adding...' : '✅ Add Expense'}
