@@ -61,10 +61,11 @@ app.use('/api/stats', statsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  // Safe logging without exposing stack traces in API responses
+  console.error('Unhandled server error:', err.message || err);
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
 });
 
