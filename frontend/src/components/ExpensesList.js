@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 
 const ExpensesList = ({ expenses, categories, showAll = false }) => {
+  // Optimization: Map category lookup by ID in O(1) time instead of O(M) Array.find on every expense item
+  // Reduces overall rendering time complexity from O(N * M) to O(N + M)
+  const categoryMap = useMemo(() => {
+    const map = new Map();
+    if (categories && Array.isArray(categories)) {
+      categories.forEach((cat) => map.set(cat.id, cat));
+    }
+    return map;
+  }, [categories]);
+
   if (!expenses || expenses.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -13,7 +23,7 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
   }
 
   const getCategoryInfo = (categoryId) => {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categoryMap.get(categoryId);
     return category || { name: 'Other', color: '#AED6F1', icon: 'category' };
   };
 
