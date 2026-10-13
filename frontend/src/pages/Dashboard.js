@@ -80,14 +80,22 @@ const Dashboard = ({ expenses, categories, dashboardStats }) => {
                 <div className="stat-label">
                   €{budget.spent_amount || 0} / €{budget.budget_amount || 0}
                 </div>
-                <div style={{ 
-                  width: '100%', 
-                  height: '8px', 
-                  backgroundColor: '#e0e0e0', 
-                  borderRadius: '4px',
-                  marginTop: '10px',
-                  overflow: 'hidden'
-                }}>
+                <div
+                  role="progressbar"
+                  aria-valuenow={Math.round(Math.min(budget.percentage_used || 0, 100))}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${budget.category || 'General'} budget spent percentage`}
+                  aria-valuetext={`${(budget.percentage_used || 0).toFixed(1)}% spent (€${budget.spent_amount || 0} of €${budget.budget_amount || 0})`}
+                  style={{
+                    width: '100%',
+                    height: '8px',
+                    backgroundColor: '#e0e0e0',
+                    borderRadius: '4px',
+                    marginTop: '10px',
+                    overflow: 'hidden'
+                  }}
+                >
                   <div style={{
                     width: `${Math.min(budget.percentage_used || 0, 100)}%`,
                     height: '100%',
