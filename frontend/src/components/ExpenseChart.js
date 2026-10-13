@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,102 +25,113 @@ ChartJS.register(
   Legend
 );
 
-const ExpenseChart = ({ data, recentExpenses }) => {
-  // Prepare data for doughnut chart (expenses by category)
-  const doughnutData = {
-    labels: data.map(item => item.category || 'Other'),
-    datasets: [
-      {
-        label: 'Expenses by Category',
-        data: data.map(item => parseFloat(item.total) || 0),
-        backgroundColor: data.map(item => item.color || '#667eea'),
-        borderColor: '#fff',
-        borderWidth: 3,
-        hoverBorderWidth: 5,
+// Performance Optimization: Move static chart configuration options outside component render scope
+// Prevents recreating option objects on every render and avoids triggering unnecessary Chart.js re-renders.
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        padding: 20,
+        usePointStyle: true,
+        font: {
+          size: 12,
+          weight: '600',
+        },
       },
-    ],
-  };
-
-  // Prepare data for line chart (recent expenses trend)
-  const lineData = {
-    labels: recentExpenses.map(item => {
-      try {
-        return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } catch {
-        return item.date;
+    },
+    tooltip: {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      borderColor: '#667eea',
+      borderWidth: 1,
+      cornerRadius: 8,
+      displayColors: true,
+      callbacks: {
+        label: function(context) {
+          return `${context.label}: €${parseFloat(context.parsed || context.raw).toFixed(2)}`;
+        }
       }
-    }),
-    datasets: [
-      {
-        label: 'Daily Expenses',
-        data: recentExpenses.map(item => parseFloat(item.total) || 0),
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#667eea',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      },
-    ],
-  };
+    },
+  },
+};
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          padding: 20,
-          usePointStyle: true,
-          font: {
-            size: 12,
-            weight: '600',
-          },
-        },
+const lineOptions = {
+  ...chartOptions,
+  scales: {
+    y: {
+      beginAtZero: true,
+      grid: {
+        color: 'rgba(0, 0, 0, 0.1)',
       },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: '#667eea',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: true,
-        callbacks: {
-          label: function(context) {
-            return `${context.label}: €${parseFloat(context.parsed || context.raw).toFixed(2)}`;
-          }
+      ticks: {
+        callback: function(value) {
+          return '€' + value.toFixed(0);
         }
+      }
+    },
+    x: {
+      grid: {
+        color: 'rgba(0, 0, 0, 0.1)',
       },
     },
-  };
+  },
+};
 
-  const lineOptions = {
-    ...chartOptions,
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
+const ExpenseChart = ({ data = [], recentExpenses = [] }) => {
+  // Performance Optimization: Memoize doughnut chart data structure
+  // Prevents O(N) array mappings and dataset object re-creations when parent components re-render.
+  // Expected Impact: Eliminates unnecessary Chart.js canvas redraws and dataset parsing on unrelated renders.
+  const doughnutData = useMemo(() => {
+    if (!data || data.length === 0) return null;
+    return {
+      labels: data.map(item => item.category || 'Other'),
+      datasets: [
+        {
+          label: 'Expenses by Category',
+          data: data.map(item => parseFloat(item.total) || 0),
+          backgroundColor: data.map(item => item.color || '#667eea'),
+          borderColor: '#fff',
+          borderWidth: 3,
+          hoverBorderWidth: 5,
         },
-        ticks: {
-          callback: function(value) {
-            return '€' + value.toFixed(0);
-          }
+      ],
+    };
+  }, [data]);
+
+  // Performance Optimization: Memoize line chart trend data
+  // Prevents date parsing and dataset re-allocations unless recentExpenses array changes.
+  const lineData = useMemo(() => {
+    if (!recentExpenses || recentExpenses.length === 0) return null;
+    return {
+      labels: recentExpenses.map(item => {
+        try {
+          return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+          return item.date;
         }
-      },
-      x: {
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
+      }),
+      datasets: [
+        {
+          label: 'Daily Expenses',
+          data: recentExpenses.map(item => parseFloat(item.total) || 0),
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#667eea',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
         },
-      },
-    },
-  };
+      ],
+    };
+  }, [recentExpenses]);
 
   if (!data || data.length === 0) {
     return (
@@ -134,7 +145,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
 
   return (
     <div style={{ height: '400px', position: 'relative' }}>
-      {data.length > 0 && (
+      {data.length > 0 && doughnutData && (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, marginBottom: '20px' }}>
             <h4 style={{ textAlign: 'center', marginBottom: '15px', color: '#333' }}>
@@ -143,7 +154,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
             <Doughnut data={doughnutData} options={chartOptions} />
           </div>
           
-          {recentExpenses && recentExpenses.length > 0 && (
+          {recentExpenses && recentExpenses.length > 0 && lineData && (
             <div style={{ height: '200px', marginTop: '20px' }}>
               <h4 style={{ textAlign: 'center', marginBottom: '15px', color: '#333' }}>
                 📈 7-Day Trend
@@ -157,4 +168,4 @@ const ExpenseChart = ({ data, recentExpenses }) => {
   );
 };
 
-export default ExpenseChart;
+export default React.memo(ExpenseChart);
