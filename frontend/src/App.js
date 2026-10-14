@@ -70,23 +70,26 @@ const App = () => {
         </div>
       </header>
 
-      <nav className="container">
+      <nav className="container" aria-label="Main navigation">
         <div className="card">
           <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button 
               className={`btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-warning'}`}
+              aria-current={currentView === 'dashboard' ? 'page' : undefined}
               onClick={() => setCurrentView('dashboard')}
             >
               📊 Dashboard
             </button>
             <button 
               className={`btn ${currentView === 'add-expense' ? 'btn-primary' : 'btn-success'}`}
+              aria-current={currentView === 'add-expense' ? 'page' : undefined}
               onClick={() => setCurrentView('add-expense')}
             >
               ➕ Add Expense
             </button>
             <button 
               className="btn btn-warning"
+              aria-label="Refresh expense data"
               onClick={loadInitialData}
             >
               🔄 Refresh
