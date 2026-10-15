@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,24 +26,24 @@ ChartJS.register(
 );
 
 const ExpenseChart = ({ data, recentExpenses }) => {
-  // Prepare data for doughnut chart (expenses by category)
-  const doughnutData = {
-    labels: data.map(item => item.category || 'Other'),
+  // Optimization: Memoize chart data objects to prevent re-computation on every parent render.
+  // Passing new object references to ChartJS components triggers expensive chart re-renders & animations.
+  const doughnutData = useMemo(() => ({
+    labels: (data || []).map(item => item.category || 'Other'),
     datasets: [
       {
         label: 'Expenses by Category',
-        data: data.map(item => parseFloat(item.total) || 0),
-        backgroundColor: data.map(item => item.color || '#667eea'),
+        data: (data || []).map(item => parseFloat(item.total) || 0),
+        backgroundColor: (data || []).map(item => item.color || '#667eea'),
         borderColor: '#fff',
         borderWidth: 3,
         hoverBorderWidth: 5,
       },
     ],
-  };
+  }), [data]);
 
-  // Prepare data for line chart (recent expenses trend)
-  const lineData = {
-    labels: recentExpenses.map(item => {
+  const lineData = useMemo(() => ({
+    labels: (recentExpenses || []).map(item => {
       try {
         return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       } catch {
@@ -53,7 +53,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
     datasets: [
       {
         label: 'Daily Expenses',
-        data: recentExpenses.map(item => parseFloat(item.total) || 0),
+        data: (recentExpenses || []).map(item => parseFloat(item.total) || 0),
         borderColor: '#667eea',
         backgroundColor: 'rgba(102, 126, 234, 0.1)',
         borderWidth: 3,
@@ -66,9 +66,10 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         pointHoverRadius: 8,
       },
     ],
-  };
+  }), [recentExpenses]);
 
-  const chartOptions = {
+  // Optimization: Memoize options objects so chart instances maintain stable config references
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -98,9 +99,9 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         }
       },
     },
-  };
+  }), []);
 
-  const lineOptions = {
+  const lineOptions = useMemo(() => ({
     ...chartOptions,
     scales: {
       y: {
@@ -120,7 +121,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         },
       },
     },
-  };
+  }), [chartOptions]);
 
   if (!data || data.length === 0) {
     return (
