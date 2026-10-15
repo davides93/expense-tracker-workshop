@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 
-const ExpensesList = ({ expenses, categories, showAll = false }) => {
+const ExpensesList = ({ expenses, categories, showAll = false, onAddExpense }) => {
   // Optimization: Map category lookup by ID in O(1) time instead of O(M) Array.find on every expense item
   // Reduces overall rendering time complexity from O(N * M) to O(N + M)
   const categoryMap = useMemo(() => {
@@ -17,7 +17,12 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
       <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
         <div style={{ fontSize: '3rem', marginBottom: '20px' }}>💸</div>
         <h3>No expenses yet</h3>
-        <p>Start by adding your first expense!</p>
+        <p style={{ marginBottom: '15px' }}>Start by adding your first expense!</p>
+        {onAddExpense && (
+          <button className="btn btn-primary" onClick={onAddExpense}>
+            ➕ Add Your First Expense
+          </button>
+        )}
       </div>
     );
   }

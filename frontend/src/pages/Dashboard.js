@@ -3,7 +3,7 @@ import ExpensesList from '../components/ExpensesList';
 import StatsCards from '../components/StatsCards';
 import ExpenseChart from '../components/ExpenseChart';
 
-const Dashboard = ({ expenses, categories, dashboardStats }) => {
+const Dashboard = ({ expenses, categories, dashboardStats, onAddExpense }) => {
   return (
     <div className="dashboard">
       <div className="card">
@@ -44,6 +44,7 @@ const Dashboard = ({ expenses, categories, dashboardStats }) => {
             expenses={expenses.slice(0, 5)} 
             categories={categories}
             showAll={false}
+            onAddExpense={onAddExpense}
           />
           {expenses.length > 5 && (
             <div style={{ textAlign: 'center', marginTop: '20px' }}>
@@ -112,6 +113,7 @@ const Dashboard = ({ expenses, categories, dashboardStats }) => {
             expenses={expenses} 
             categories={categories}
             showAll={true}
+            onAddExpense={onAddExpense}
           />
         </div>
       )}
