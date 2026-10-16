@@ -66,6 +66,11 @@ body {
   gap: 8px;
 }
 
+.btn:focus-visible {
+  outline: 3px solid #667eea;
+  outline-offset: 3px;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
