@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { memo } from 'react';
 
+// Optimization: Memoize StatsCards to prevent unnecessary re-renders when parent re-renders.
 const StatsCards = ({ stats }) => {
   const currentMonth = stats?.currentMonth || {};
   
@@ -38,4 +39,4 @@ const StatsCards = ({ stats }) => {
   );
 };
 
-export default StatsCards;
+export default memo(StatsCards);
