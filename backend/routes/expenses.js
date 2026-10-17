@@ -36,20 +36,24 @@ router.get('/', async (req, res) => {
 
     query += ` ORDER BY e.expense_date DESC, e.created_at DESC`;
     
+    // Sanitize and bound limit (1-100, default 50) and offset (>=0, default 0) to prevent DoS & bad queries
+    const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 50));
+    const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
+
     paramCount++;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(safeLimit);
     
     paramCount++;
     query += ` OFFSET $${paramCount}`;
-    params.push(offset);
+    params.push(safeOffset);
 
     const result = await db.query(query, params);
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: safeLimit,
+      offset: safeOffset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
@@ -57,14 +61,26 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Helper function for validating expense inputs
+function validateExpenseInput(amount, expense_date) {
+  const numAmount = Number(amount);
+  if (amount === undefined || amount === null || !Number.isFinite(numAmount) || numAmount <= 0) {
+    return 'Valid positive amount is required';
+  }
+  if (!expense_date || isNaN(Date.parse(expense_date))) {
+    return 'Valid expense_date is required';
+  }
+  return null;
+}
+
 // POST /api/expenses - Create a new expense
 router.post('/', async (req, res) => {
   try {
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
-    // Basic validation
-    if (!amount || !expense_date) {
-      return res.status(400).json({ error: 'Amount and expense_date are required' });
+    const validationError = validateExpenseInput(amount, expense_date);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
 
     const query = `
@@ -94,6 +110,11 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
+
+    const validationError = validateExpenseInput(amount, expense_date);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
     
     const query = `
       UPDATE expenses 
