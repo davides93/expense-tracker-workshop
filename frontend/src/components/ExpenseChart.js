@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo, memo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,9 +25,12 @@ ChartJS.register(
   Legend
 );
 
-const ExpenseChart = ({ data, recentExpenses }) => {
-  // Prepare data for doughnut chart (expenses by category)
-  const doughnutData = {
+// Optimization: Wrap ExpenseChart with memo and useMemo for chart data structures and options.
+// Re-calculating Chart.js data and options objects on every render creates garbage collection overhead
+// and triggers costly Chart.js re-initializations / canvas redraws.
+const ExpenseChart = ({ data = [], recentExpenses = [] }) => {
+  // Memoize doughnut chart data (expenses by category)
+  const doughnutData = useMemo(() => ({
     labels: data.map(item => item.category || 'Other'),
     datasets: [
       {
@@ -39,10 +42,10 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         hoverBorderWidth: 5,
       },
     ],
-  };
+  }), [data]);
 
-  // Prepare data for line chart (recent expenses trend)
-  const lineData = {
+  // Memoize line chart data (recent expenses trend)
+  const lineData = useMemo(() => ({
     labels: recentExpenses.map(item => {
       try {
         return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -66,9 +69,10 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         pointHoverRadius: 8,
       },
     ],
-  };
+  }), [recentExpenses]);
 
-  const chartOptions = {
+  // Static options memoized once to maintain object identity across renders
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -98,9 +102,9 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         }
       },
     },
-  };
+  }), []);
 
-  const lineOptions = {
+  const lineOptions = useMemo(() => ({
     ...chartOptions,
     scales: {
       y: {
@@ -120,7 +124,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         },
       },
     },
-  };
+  }), [chartOptions]);
 
   if (!data || data.length === 0) {
     return (
@@ -157,4 +161,4 @@ const ExpenseChart = ({ data, recentExpenses }) => {
   );
 };
 
-export default ExpenseChart;
+export default memo(ExpenseChart);

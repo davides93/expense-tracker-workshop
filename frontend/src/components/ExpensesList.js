@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { format } from 'date-fns';
 
+// Optimization: Memoize ExpensesList component using React.memo to prevent unnecessary re-renders
+// when parent component state or sibling props change.
 const ExpensesList = ({ expenses, categories, showAll = false }) => {
   // Optimization: Map category lookup by ID in O(1) time instead of O(M) Array.find on every expense item
   // Reduces overall rendering time complexity from O(N * M) to O(N + M)
@@ -70,4 +72,4 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
   );
 };
 
-export default ExpensesList;
+export default memo(ExpensesList);
