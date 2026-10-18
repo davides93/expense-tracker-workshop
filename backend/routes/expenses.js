@@ -6,7 +6,10 @@ const db = require('../config/database');
 router.get('/', async (req, res) => {
   try {
     const { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
-    
+
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+    const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
+
     let query = `
       SELECT e.*, c.name as category_name, c.color as category_color 
       FROM expenses e 
@@ -38,18 +41,18 @@ router.get('/', async (req, res) => {
     
     paramCount++;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(parsedLimit);
     
     paramCount++;
     query += ` OFFSET $${paramCount}`;
-    params.push(offset);
+    params.push(parsedOffset);
 
     const result = await db.query(query, params);
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parsedLimit,
+      offset: parsedOffset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
@@ -62,9 +65,13 @@ router.post('/', async (req, res) => {
   try {
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
-    // Basic validation
-    if (!amount || !expense_date) {
-      return res.status(400).json({ error: 'Amount and expense_date are required' });
+    // Security: Validate required fields and data types to prevent malicious or invalid input
+    const numericAmount = Number(amount);
+    if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ error: 'A valid positive amount is required' });
+    }
+    if (!expense_date || isNaN(Date.parse(expense_date))) {
+      return res.status(400).json({ error: 'A valid expense_date is required' });
     }
 
     const query = `
@@ -74,7 +81,7 @@ router.post('/', async (req, res) => {
     `;
     
     const result = await db.query(query, [
-      amount, 
+      numericAmount,
       currency || 'EUR', 
       description, 
       expense_date, 
@@ -94,6 +101,14 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
+
+    const numericAmount = Number(amount);
+    if (amount !== undefined && (isNaN(numericAmount) || numericAmount <= 0)) {
+      return res.status(400).json({ error: 'A valid positive amount is required' });
+    }
+    if (expense_date !== undefined && isNaN(Date.parse(expense_date))) {
+      return res.status(400).json({ error: 'A valid expense_date is required' });
+    }
     
     const query = `
       UPDATE expenses 
@@ -104,7 +119,7 @@ router.put('/:id', async (req, res) => {
     `;
     
     const result = await db.query(query, [
-      amount, currency, description, expense_date, category_id, receipt_url, id
+      numericAmount || amount, currency, description, expense_date, category_id, receipt_url, id
     ]);
     
     if (result.rows.length === 0) {
