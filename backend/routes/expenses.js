@@ -7,6 +7,12 @@ router.get('/', async (req, res) => {
   try {
     const { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
     
+    // Security: Sanitize and enforce safe bounds on pagination parameters.
+    // Restricting limit (1 to 100) prevents DoS via resource exhaustion,
+    // and ensuring valid non-negative integers prevents database syntax errors.
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+    const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
+
     let query = `
       SELECT e.*, c.name as category_name, c.color as category_color 
       FROM expenses e 
@@ -38,18 +44,18 @@ router.get('/', async (req, res) => {
     
     paramCount++;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(parsedLimit);
     
     paramCount++;
     query += ` OFFSET $${paramCount}`;
-    params.push(offset);
+    params.push(parsedOffset);
 
     const result = await db.query(query, params);
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parsedLimit,
+      offset: parsedOffset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
@@ -93,6 +99,10 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    // Security: Validate id parameter to ensure it is a valid positive integer.
+    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+      return res.status(400).json({ error: 'Invalid expense ID' });
+    }
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
     const query = `
@@ -122,7 +132,11 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+    // Security: Validate id parameter to ensure it is a valid positive integer.
+    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+      return res.status(400).json({ error: 'Invalid expense ID' });
+    }
+
     const result = await db.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
     
     if (result.rows.length === 0) {
