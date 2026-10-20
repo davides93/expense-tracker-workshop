@@ -6,7 +6,13 @@ const db = require('../config/database');
 router.get('/', async (req, res) => {
   try {
     const { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
-    
+
+    // Security: Validate and sanitize pagination query params to prevent SQL errors / DoS
+    const parsedLimit = parseInt(limit, 10);
+    const parsedOffset = parseInt(offset, 10);
+    const safeLimit = (isNaN(parsedLimit) || parsedLimit < 1) ? 50 : Math.min(parsedLimit, 100);
+    const safeOffset = (isNaN(parsedOffset) || parsedOffset < 0) ? 0 : parsedOffset;
+
     let query = `
       SELECT e.*, c.name as category_name, c.color as category_color 
       FROM expenses e 
@@ -38,18 +44,18 @@ router.get('/', async (req, res) => {
     
     paramCount++;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(safeLimit);
     
     paramCount++;
     query += ` OFFSET $${paramCount}`;
-    params.push(offset);
+    params.push(safeOffset);
 
     const result = await db.query(query, params);
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: safeLimit,
+      offset: safeOffset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
