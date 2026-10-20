@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,50 +25,60 @@ ChartJS.register(
   Legend
 );
 
+// Performance Optimization (Bolt): Memoize data transformations and chart options with useMemo
+// and wrap component in React.memo to prevent unnecessary re-renders, object re-allocations,
+// date parsing, array mapping, and expensive Chart.js canvas redraws when props have not changed.
 const ExpenseChart = ({ data, recentExpenses }) => {
-  // Prepare data for doughnut chart (expenses by category)
-  const doughnutData = {
-    labels: data.map(item => item.category || 'Other'),
-    datasets: [
-      {
-        label: 'Expenses by Category',
-        data: data.map(item => parseFloat(item.total) || 0),
-        backgroundColor: data.map(item => item.color || '#667eea'),
-        borderColor: '#fff',
-        borderWidth: 3,
-        hoverBorderWidth: 5,
-      },
-    ],
-  };
+  // Memoize data for doughnut chart (expenses by category) to avoid re-mapping on every render
+  const doughnutData = useMemo(() => {
+    const safeData = data || [];
+    return {
+      labels: safeData.map(item => item.category || 'Other'),
+      datasets: [
+        {
+          label: 'Expenses by Category',
+          data: safeData.map(item => parseFloat(item.total) || 0),
+          backgroundColor: safeData.map(item => item.color || '#667eea'),
+          borderColor: '#fff',
+          borderWidth: 3,
+          hoverBorderWidth: 5,
+        },
+      ],
+    };
+  }, [data]);
 
-  // Prepare data for line chart (recent expenses trend)
-  const lineData = {
-    labels: recentExpenses.map(item => {
-      try {
-        return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } catch {
-        return item.date;
-      }
-    }),
-    datasets: [
-      {
-        label: 'Daily Expenses',
-        data: recentExpenses.map(item => parseFloat(item.total) || 0),
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#667eea',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      },
-    ],
-  };
+  // Memoize data for line chart (recent expenses trend) to avoid Date conversions and re-mapping
+  const lineData = useMemo(() => {
+    const safeRecentExpenses = recentExpenses || [];
+    return {
+      labels: safeRecentExpenses.map(item => {
+        try {
+          return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+          return item.date;
+        }
+      }),
+      datasets: [
+        {
+          label: 'Daily Expenses',
+          data: safeRecentExpenses.map(item => parseFloat(item.total) || 0),
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#667eea',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+        },
+      ],
+    };
+  }, [recentExpenses]);
 
-  const chartOptions = {
+  // Memoize static chart options to maintain reference equality for react-chartjs-2
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -98,9 +108,10 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         }
       },
     },
-  };
+  }), []);
 
-  const lineOptions = {
+  // Memoize line chart options
+  const lineOptions = useMemo(() => ({
     ...chartOptions,
     scales: {
       y: {
@@ -120,7 +131,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         },
       },
     },
-  };
+  }), [chartOptions]);
 
   if (!data || data.length === 0) {
     return (
@@ -157,4 +168,4 @@ const ExpenseChart = ({ data, recentExpenses }) => {
   );
 };
 
-export default ExpenseChart;
+export default React.memo(ExpenseChart);
