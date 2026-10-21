@@ -5,7 +5,17 @@ const db = require('../config/database');
 // GET /api/expenses - Get all expenses for a user
 router.get('/', async (req, res) => {
   try {
-    const { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
+    let { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
+
+    // Security: Validate and sanitize pagination input to prevent DoS via unbounded queries
+    const MAX_LIMIT = 100;
+    const DEFAULT_LIMIT = 50;
+
+    const parsedLimit = parseInt(limit, 10);
+    const parsedOffset = parseInt(offset, 10);
+
+    limit = isNaN(parsedLimit) || parsedLimit <= 0 ? DEFAULT_LIMIT : Math.min(parsedLimit, MAX_LIMIT);
+    offset = isNaN(parsedOffset) || parsedOffset < 0 ? 0 : parsedOffset;
     
     let query = `
       SELECT e.*, c.name as category_name, c.color as category_color 
@@ -48,8 +58,8 @@ router.get('/', async (req, res) => {
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit,
+      offset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
