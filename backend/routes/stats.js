@@ -5,16 +5,21 @@ const db = require('../config/database');
 // GET /api/stats/dashboard - Get dashboard statistics
 router.get('/dashboard', async (req, res) => {
   try {
-    // Get current month expenses
+    // Get current month expenses using index-friendly date range query
+    // Performance optimization: Avoid DATE_TRUNC() on column 'expense_date' to allow PostgreSQL
+    // to utilize the idx_expenses_date index scan rather than executing a full table scan.
     const currentMonthQuery = `
       SELECT 
         COUNT(*) as total_expenses,
         COALESCE(SUM(amount), 0) as total_amount
       FROM expenses 
-      WHERE DATE_TRUNC('month', expense_date) = DATE_TRUNC('month', CURRENT_DATE)
+      WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE)
+        AND expense_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
     `;
 
     // Get expenses by category for current month
+    // Performance optimization: Using SARGable range predicates (>= and <) enables PostgreSQL
+    // index range scan on idx_expenses_date for joining expenses.
     const categoryQuery = `
       SELECT 
         c.name as category,
@@ -23,7 +28,8 @@ router.get('/dashboard', async (req, res) => {
         COALESCE(SUM(e.amount), 0) as total
       FROM categories c
       LEFT JOIN expenses e ON c.id = e.category_id 
-        AND DATE_TRUNC('month', e.expense_date) = DATE_TRUNC('month', CURRENT_DATE)
+        AND e.expense_date >= DATE_TRUNC('month', CURRENT_DATE)
+        AND e.expense_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
       GROUP BY c.id, c.name, c.color
       ORDER BY total DESC
     `;
