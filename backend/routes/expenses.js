@@ -5,8 +5,12 @@ const db = require('../config/database');
 // GET /api/expenses - Get all expenses for a user
 router.get('/', async (req, res) => {
   try {
-    const { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
+    const { category_id, start_date, end_date } = req.query;
     
+    // Security: Validate and sanitize pagination bounds to prevent DoS (excessive limits) and SQL runtime errors (negative/invalid values)
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
     let query = `
       SELECT e.*, c.name as category_name, c.color as category_color 
       FROM expenses e 
@@ -48,8 +52,8 @@ router.get('/', async (req, res) => {
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit,
+      offset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
@@ -62,9 +66,9 @@ router.post('/', async (req, res) => {
   try {
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
-    // Basic validation
-    if (!amount || !expense_date) {
-      return res.status(400).json({ error: 'Amount and expense_date are required' });
+    // Security: Input validation on amount (must be positive numeric value) and required fields
+    if (amount === undefined || isNaN(Number(amount)) || Number(amount) <= 0 || !expense_date) {
+      return res.status(400).json({ error: 'A positive numeric amount and expense_date are required' });
     }
 
     const query = `
