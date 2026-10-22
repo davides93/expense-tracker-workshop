@@ -38,12 +38,12 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
   const displayExpenses = showAll ? expenses : expenses.slice(0, 5);
 
   return (
-    <div className="expenses-list">
+    <div className="expenses-list" role="list" aria-label="Expenses list">
       {displayExpenses.map((expense) => {
         const category = getCategoryInfo(expense.category_id);
         
         return (
-          <div key={expense.id} className="expense-item">
+          <div key={expense.id} className="expense-item" role="listitem">
             <div className="expense-info">
               <div className="expense-description">
                 {expense.description || 'No description'}
@@ -55,8 +55,8 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
                 >
                   {category.name}
                 </span>
-                <span style={{ marginLeft: '15px', color: '#999' }}>
-                  📅 {formatDate(expense.expense_date)}
+                <span style={{ marginLeft: '15px', color: '#595959' }}>
+                  <span role="img" aria-label="Date">📅</span> {formatDate(expense.expense_date)}
                 </span>
               </div>
             </div>
