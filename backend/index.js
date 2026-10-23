@@ -11,8 +11,14 @@ const statsRoutes = require('./routes/stats');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Security: Restrict CORS origin to trusted domains instead of allowing wildcard origins (*)
+const corsOptions = {
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
