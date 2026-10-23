@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 
-const StatsCards = ({ stats }) => {
+// Optimization: Memoize StatsCards to avoid unnecessary re-renders when parent state changes but stats prop remains identical.
+const StatsCards = memo(({ stats }) => {
   const currentMonth = stats?.currentMonth || {};
   
   return (
@@ -36,6 +37,6 @@ const StatsCards = ({ stats }) => {
       </div>
     </div>
   );
-};
+});
 
 export default StatsCards;
