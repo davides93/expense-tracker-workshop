@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { format } from 'date-fns';
 
-const ExpensesList = ({ expenses, categories, showAll = false }) => {
+// Optimization: Memoize ExpensesList to prevent redundant list element rendering when props have not changed.
+const ExpensesList = memo(({ expenses, categories, showAll = false }) => {
   // Optimization: Map category lookup by ID in O(1) time instead of O(M) Array.find on every expense item
   // Reduces overall rendering time complexity from O(N * M) to O(N + M)
   const categoryMap = useMemo(() => {
@@ -68,6 +69,6 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
       })}
     </div>
   );
-};
+});
 
 export default ExpensesList;

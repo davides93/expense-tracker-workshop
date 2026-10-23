@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { memo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,7 +25,8 @@ ChartJS.register(
   Legend
 );
 
-const ExpenseChart = ({ data, recentExpenses }) => {
+// Optimization: Memoize ExpenseChart to prevent expensive Chart.js re-renders and canvas redraws when props remain identical.
+const ExpenseChart = memo(({ data, recentExpenses }) => {
   // Prepare data for doughnut chart (expenses by category)
   const doughnutData = {
     labels: data.map(item => item.category || 'Other'),
@@ -155,6 +156,6 @@ const ExpenseChart = ({ data, recentExpenses }) => {
       )}
     </div>
   );
-};
+});
 
 export default ExpenseChart;
