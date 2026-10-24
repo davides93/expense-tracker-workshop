@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,102 +25,110 @@ ChartJS.register(
   Legend
 );
 
-const ExpenseChart = ({ data, recentExpenses }) => {
-  // Prepare data for doughnut chart (expenses by category)
-  const doughnutData = {
-    labels: data.map(item => item.category || 'Other'),
-    datasets: [
-      {
-        label: 'Expenses by Category',
-        data: data.map(item => parseFloat(item.total) || 0),
-        backgroundColor: data.map(item => item.color || '#667eea'),
-        borderColor: '#fff',
-        borderWidth: 3,
-        hoverBorderWidth: 5,
+// Performance optimization: Move static chart configurations outside the component.
+// Prevents re-creating options objects and nested function callbacks on every render.
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        padding: 20,
+        usePointStyle: true,
+        font: {
+          size: 12,
+          weight: '600',
+        },
       },
-    ],
-  };
-
-  // Prepare data for line chart (recent expenses trend)
-  const lineData = {
-    labels: recentExpenses.map(item => {
-      try {
-        return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } catch {
-        return item.date;
+    },
+    tooltip: {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      borderColor: '#667eea',
+      borderWidth: 1,
+      cornerRadius: 8,
+      displayColors: true,
+      callbacks: {
+        label: function(context) {
+          return `${context.label}: €${parseFloat(context.parsed || context.raw).toFixed(2)}`;
+        }
       }
-    }),
-    datasets: [
-      {
-        label: 'Daily Expenses',
-        data: recentExpenses.map(item => parseFloat(item.total) || 0),
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#667eea',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      },
-    ],
-  };
+    },
+  },
+};
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          padding: 20,
-          usePointStyle: true,
-          font: {
-            size: 12,
-            weight: '600',
-          },
-        },
+const lineOptions = {
+  ...chartOptions,
+  scales: {
+    y: {
+      beginAtZero: true,
+      grid: {
+        color: 'rgba(0, 0, 0, 0.1)',
       },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: '#667eea',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: true,
-        callbacks: {
-          label: function(context) {
-            return `${context.label}: €${parseFloat(context.parsed || context.raw).toFixed(2)}`;
-          }
+      ticks: {
+        callback: function(value) {
+          return '€' + value.toFixed(0);
         }
+      }
+    },
+    x: {
+      grid: {
+        color: 'rgba(0, 0, 0, 0.1)',
       },
     },
-  };
+  },
+};
 
-  const lineOptions = {
-    ...chartOptions,
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
+const ExpenseChart = ({ data, recentExpenses }) => {
+  // Performance optimization: Memoize doughnut dataset to avoid array mapping and object allocation on re-renders
+  const doughnutData = useMemo(() => {
+    if (!data) return { labels: [], datasets: [] };
+    return {
+      labels: data.map(item => item.category || 'Other'),
+      datasets: [
+        {
+          label: 'Expenses by Category',
+          data: data.map(item => parseFloat(item.total) || 0),
+          backgroundColor: data.map(item => item.color || '#667eea'),
+          borderColor: '#fff',
+          borderWidth: 3,
+          hoverBorderWidth: 5,
         },
-        ticks: {
-          callback: function(value) {
-            return '€' + value.toFixed(0);
-          }
+      ],
+    };
+  }, [data]);
+
+  // Performance optimization: Memoize line dataset to avoid date parsing and string formatting on re-renders
+  const lineData = useMemo(() => {
+    if (!recentExpenses) return { labels: [], datasets: [] };
+    return {
+      labels: recentExpenses.map(item => {
+        try {
+          return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+          return item.date;
         }
-      },
-      x: {
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
+      }),
+      datasets: [
+        {
+          label: 'Daily Expenses',
+          data: recentExpenses.map(item => parseFloat(item.total) || 0),
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#667eea',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
         },
-      },
-    },
-  };
+      ],
+    };
+  }, [recentExpenses]);
 
   if (!data || data.length === 0) {
     return (
@@ -157,4 +165,5 @@ const ExpenseChart = ({ data, recentExpenses }) => {
   );
 };
 
-export default ExpenseChart;
+// Performance optimization: Prevent component re-renders when parent state updates if data props haven't changed
+export default React.memo(ExpenseChart);
