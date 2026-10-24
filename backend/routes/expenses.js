@@ -7,6 +7,10 @@ router.get('/', async (req, res) => {
   try {
     const { limit = 50, offset = 0, category_id, start_date, end_date } = req.query;
     
+    // Sanitize and validate pagination parameters to prevent DoS, invalid type SQL errors, and negative values
+    const parsedLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 50));
+    const parsedOffset = Math.max(0, parseInt(offset, 10) || 0);
+
     let query = `
       SELECT e.*, c.name as category_name, c.color as category_color 
       FROM expenses e 
@@ -38,18 +42,18 @@ router.get('/', async (req, res) => {
     
     paramCount++;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(parsedLimit);
     
     paramCount++;
     query += ` OFFSET $${paramCount}`;
-    params.push(offset);
+    params.push(parsedOffset);
 
     const result = await db.query(query, params);
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parsedLimit,
+      offset: parsedOffset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
@@ -62,9 +66,14 @@ router.post('/', async (req, res) => {
   try {
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
-    // Basic validation
-    if (!amount || !expense_date) {
-      return res.status(400).json({ error: 'Amount and expense_date are required' });
+    // Validate required fields and ensure amount is a positive number
+    const parsedAmount = Number(amount);
+    if (amount === undefined || amount === null || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+
+    if (!expense_date) {
+      return res.status(400).json({ error: 'Expense date is required' });
     }
 
     const query = `
@@ -74,7 +83,7 @@ router.post('/', async (req, res) => {
     `;
     
     const result = await db.query(query, [
-      amount, 
+      parsedAmount,
       currency || 'EUR', 
       description, 
       expense_date, 
@@ -95,6 +104,15 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
+    // Validate amount if provided
+    let parsedAmount = amount;
+    if (amount !== undefined) {
+      parsedAmount = Number(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ error: 'Amount must be a positive number' });
+      }
+    }
+
     const query = `
       UPDATE expenses 
       SET amount = $1, currency = $2, description = $3, expense_date = $4, 
@@ -104,7 +122,7 @@ router.put('/:id', async (req, res) => {
     `;
     
     const result = await db.query(query, [
-      amount, currency, description, expense_date, category_id, receipt_url, id
+      parsedAmount, currency, description, expense_date, category_id, receipt_url, id
     ]);
     
     if (result.rows.length === 0) {
