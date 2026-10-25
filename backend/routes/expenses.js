@@ -36,20 +36,24 @@ router.get('/', async (req, res) => {
 
     query += ` ORDER BY e.expense_date DESC, e.created_at DESC`;
     
+    // Security: Validate and sanitize pagination input to prevent DoS or query failure
+    const parsedLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 50));
+    const parsedOffset = Math.max(0, parseInt(offset, 10) || 0);
+
     paramCount++;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(parsedLimit);
     
     paramCount++;
     query += ` OFFSET $${paramCount}`;
-    params.push(offset);
+    params.push(parsedOffset);
 
     const result = await db.query(query, params);
     res.json({
       expenses: result.rows,
       total: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parsedLimit,
+      offset: parsedOffset
     });
   } catch (err) {
     console.error('Error fetching expenses:', err);
