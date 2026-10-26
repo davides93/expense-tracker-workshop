@@ -12,6 +12,14 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  // Security headers to harden API response
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
