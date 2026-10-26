@@ -76,18 +76,21 @@ const App = () => {
             <button 
               className={`btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-warning'}`}
               onClick={() => setCurrentView('dashboard')}
+              aria-current={currentView === 'dashboard' ? 'page' : undefined}
             >
               📊 Dashboard
             </button>
             <button 
               className={`btn ${currentView === 'add-expense' ? 'btn-primary' : 'btn-success'}`}
               onClick={() => setCurrentView('add-expense')}
+              aria-current={currentView === 'add-expense' ? 'page' : undefined}
             >
               ➕ Add Expense
             </button>
             <button 
               className="btn btn-warning"
               onClick={loadInitialData}
+              aria-label="Refresh data"
             >
               🔄 Refresh
             </button>
