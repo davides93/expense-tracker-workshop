@@ -95,6 +95,11 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { amount, currency, description, expense_date, category_id, receipt_url } = req.body;
     
+    // Basic validation
+    if (!amount || !expense_date) {
+      return res.status(400).json({ error: 'Amount and expense_date are required' });
+    }
+
     const query = `
       UPDATE expenses 
       SET amount = $1, currency = $2, description = $3, expense_date = $4, 
