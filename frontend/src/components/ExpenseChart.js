@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,49 +26,58 @@ ChartJS.register(
 );
 
 const ExpenseChart = ({ data, recentExpenses }) => {
-  // Prepare data for doughnut chart (expenses by category)
-  const doughnutData = {
-    labels: data.map(item => item.category || 'Other'),
-    datasets: [
-      {
-        label: 'Expenses by Category',
-        data: data.map(item => parseFloat(item.total) || 0),
-        backgroundColor: data.map(item => item.color || '#667eea'),
-        borderColor: '#fff',
-        borderWidth: 3,
-        hoverBorderWidth: 5,
-      },
-    ],
-  };
+  // Optimization: Memoize chart data structures to avoid array transformations
+  // and object re-allocations on every parent re-render. Preserves referential equality
+  // so ChartJS / react-chartjs-2 doesn't trigger unnecessary canvas redraws.
+  const doughnutData = useMemo(() => {
+    if (!data) return { labels: [], datasets: [] };
+    return {
+      labels: data.map(item => item.category || 'Other'),
+      datasets: [
+        {
+          label: 'Expenses by Category',
+          data: data.map(item => parseFloat(item.total) || 0),
+          backgroundColor: data.map(item => item.color || '#667eea'),
+          borderColor: '#fff',
+          borderWidth: 3,
+          hoverBorderWidth: 5,
+        },
+      ],
+    };
+  }, [data]);
 
-  // Prepare data for line chart (recent expenses trend)
-  const lineData = {
-    labels: recentExpenses.map(item => {
-      try {
-        return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } catch {
-        return item.date;
-      }
-    }),
-    datasets: [
-      {
-        label: 'Daily Expenses',
-        data: recentExpenses.map(item => parseFloat(item.total) || 0),
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#667eea',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      },
-    ],
-  };
+  // Optimization: Memoize line chart data transformation
+  const lineData = useMemo(() => {
+    if (!recentExpenses) return { labels: [], datasets: [] };
+    return {
+      labels: recentExpenses.map(item => {
+        try {
+          return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+          return item.date;
+        }
+      }),
+      datasets: [
+        {
+          label: 'Daily Expenses',
+          data: recentExpenses.map(item => parseFloat(item.total) || 0),
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#667eea',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+        },
+      ],
+    };
+  }, [recentExpenses]);
 
-  const chartOptions = {
+  // Optimization: Memoize chart options to prevent Chart.js options diffing overhead
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -98,9 +107,9 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         }
       },
     },
-  };
+  }), []);
 
-  const lineOptions = {
+  const lineOptions = useMemo(() => ({
     ...chartOptions,
     scales: {
       y: {
@@ -120,7 +129,7 @@ const ExpenseChart = ({ data, recentExpenses }) => {
         },
       },
     },
-  };
+  }), [chartOptions]);
 
   if (!data || data.length === 0) {
     return (
