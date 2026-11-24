@@ -23,6 +23,7 @@ router.get('/dashboard', async (req, res) => {
     // index range scan on idx_expenses_date for joining expenses.
     const categoryQuery = `
       SELECT 
+        c.id as category_id,
         c.name as category,
         c.color,
         COUNT(e.id) as count,
@@ -33,18 +34,26 @@ router.get('/dashboard', async (req, res) => {
         AND e.expense_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
         AND COALESCE(e.currency, 'EUR') = 'EUR'
       GROUP BY c.id, c.name, c.color
+      UNION ALL
+      SELECT NULL, 'Uncategorized', '#77838d', COUNT(*), COALESCE(SUM(amount), 0)
+      FROM expenses
+      WHERE category_id IS NULL
+        AND expense_date >= DATE_TRUNC('month', CURRENT_DATE)
+        AND expense_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+        AND COALESCE(currency, 'EUR') = 'EUR'
+      HAVING COUNT(*) > 0
       ORDER BY total DESC
     `;
 
     // Get recent expenses (last 7 days by day)
     const recentExpensesQuery = `
       SELECT 
-        DATE(expense_date) as date,
+        expense_date as date,
         COALESCE(SUM(amount), 0) as total
       FROM expenses 
       WHERE expense_date BETWEEN CURRENT_DATE - 6 AND CURRENT_DATE
         AND COALESCE(currency, 'EUR') = 'EUR'
-      GROUP BY DATE(expense_date)
+      GROUP BY expense_date
       ORDER BY date ASC
     `;
 
@@ -97,11 +106,12 @@ router.get('/monthly', async (req, res) => {
   try {
     const query = `
       SELECT 
-        DATE_TRUNC('month', expense_date) as month,
+        DATE_TRUNC('month', expense_date)::date as month,
         COALESCE(SUM(amount), 0) as total,
         COUNT(*) as count
       FROM expenses 
-      WHERE expense_date >= CURRENT_DATE - INTERVAL '12 months'
+      WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+        AND expense_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
         AND COALESCE(currency, 'EUR') = 'EUR'
       GROUP BY DATE_TRUNC('month', expense_date)
       ORDER BY month ASC

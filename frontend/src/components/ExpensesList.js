@@ -1,88 +1,43 @@
-import React, { useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import React from 'react';
+import { calendarDate, currency } from '../utils/presentation';
 
-const FALLBACK_CATEGORY = { name: 'Other', color: '#AED6F1' };
-
-const ExpensesList = ({
-  expenses, categories, showAll = false, onAddExpense, onEditExpense, onDeleteExpense, actionsDisabled,
-}) => {
-  // Optimization: Map category lookup by ID in O(1) time instead of O(M) Array.find on every expense item
-  // Reduces overall rendering time complexity from O(N * M) to O(N + M)
-  const categoryMap = useMemo(() => {
-    const map = new Map();
-    if (categories && Array.isArray(categories)) {
-      categories.forEach((cat) => map.set(cat.id, cat));
-    }
-    return map;
-  }, [categories]);
-
-  if (!expenses || expenses.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '20px' }}>💸</div>
-        <h3>No expenses yet</h3>
-        <p style={{ marginBottom: '15px' }}>Start by adding your first expense!</p>
-        {onAddExpense && (
-          <button className="btn btn-primary" onClick={onAddExpense}>
-            ➕ Add Your First Expense
-          </button>
-        )}
-      </div>
-    );
+function safeReceipt(url) {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return null;
+  try {
+    return new URL(url).href;
+  } catch {
+    return null;
   }
+}
 
-  const formatDate = (dateString) => {
-    try {
-      return format(parseISO(dateString.slice(0, 10)), 'MMM dd, yyyy');
-    } catch {
-      return dateString;
-    }
-  };
-
-  const displayExpenses = showAll ? expenses : expenses.slice(0, 5);
-
+export default function ExpensesList({ expenses, onEdit, onDelete, busy = false }) {
   return (
-    <div className="expenses-list" role="list" aria-label={showAll ? "All expenses" : "Recent expenses"}>
-      {displayExpenses.map((expense) => {
-        const category = categoryMap.get(expense.category_id) || FALLBACK_CATEGORY;
-        
+    <ul className="expense-list" aria-label={onEdit ? 'Transactions' : 'Recent expenses'}>
+      {expenses.map(expense => {
+        const description = expense.description || 'Untitled expense';
+        const receipt = safeReceipt(expense.receipt_url);
         return (
-          <div key={expense.id} className="expense-item" role="listitem">
+          <li key={expense.id} className="expense-item">
             <div className="expense-info">
-              <div className="expense-description">
-                {expense.description || 'No description'}
-              </div>
+              <strong>{description}</strong>
               <div className="expense-meta">
-                <span 
-                  className="category-badge"
-                  style={{ backgroundColor: category.color }}
-                >
-                  {category.name}
-                </span>
-                <span style={{ marginLeft: '15px', color: '#595959' }}>
-                  <span aria-hidden="true">📅</span> {formatDate(expense.expense_date)}
-                </span>
+                <span>{expense.category_name || 'Uncategorized'}</span>
+                <time dateTime={expense.expense_date.slice(0, 10)}>{calendarDate(expense.expense_date)}</time>
+                {receipt && <a href={receipt} target="_blank" rel="noreferrer">Receipt</a>}
               </div>
             </div>
-            <div className="expense-amount">
-              {new Intl.NumberFormat('en', { style: 'currency', currency: expense.currency || 'EUR' })
-                .format(Number(expense.amount))}
-            </div>
-            {onEditExpense && onDeleteExpense && (
-              <div className="expense-actions">
-                <button className="btn btn-warning" onClick={() => onEditExpense(expense)} disabled={actionsDisabled}>
-                  Edit
-                </button>
-                <button className="btn btn-danger" onClick={() => onDeleteExpense(expense)} disabled={actionsDisabled}>
-                  Delete
-                </button>
+            <span className="expense-amount">{currency(expense.amount, expense.currency || 'EUR')}</span>
+            {onEdit && (
+              <div className="actions expense-actions">
+                <button className="btn btn-secondary" onClick={() => onEdit(expense)}
+                  aria-label={'Edit ' + description} disabled={busy}>Edit</button>
+                <button className="btn btn-danger" onClick={() => onDelete(expense)}
+                  aria-label={'Delete ' + description} disabled={busy}>Delete</button>
               </div>
             )}
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
-};
-
-export default React.memo(ExpensesList);
+}

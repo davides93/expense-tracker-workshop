@@ -10,8 +10,8 @@ const api = axios.create({
 });
 
 // Expenses API
-export const fetchExpenses = async (params = {}) => {
-  const response = await api.get('/expenses', { params });
+export const fetchExpenses = async (params = {}, signal) => {
+  const response = await api.get('/expenses', { params, signal });
   return response.data;
 };
 
@@ -42,8 +42,8 @@ export const createCategory = async (category) => {
 };
 
 // Budgets API
-export const fetchBudgets = async () => {
-  const response = await api.get('/budgets');
+export const fetchBudgets = async signal => {
+  const response = await api.get('/budgets', { signal });
   return response.data;
 };
 
@@ -52,14 +52,23 @@ export const createBudget = async (budget) => {
   return response.data;
 };
 
+export const updateBudget = async (id, budget) => {
+  const response = await api.put(`/budgets/${id}`, budget);
+  return response.data;
+};
+
+export const deleteBudget = async id => {
+  await api.delete(`/budgets/${id}`);
+};
+
 // Stats API
 export const fetchDashboardStats = async () => {
   const response = await api.get('/stats/dashboard');
   return response.data;
 };
 
-export const fetchMonthlyStats = async () => {
-  const response = await api.get('/stats/monthly');
+export const fetchMonthlyStats = async signal => {
+  const response = await api.get('/stats/monthly', { signal });
   return response.data;
 };
 

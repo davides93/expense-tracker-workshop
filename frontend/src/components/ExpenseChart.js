@@ -1,177 +1,100 @@
 import React, { useMemo } from 'react';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
+  Filler, ArcElement, Tooltip,
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
+import { calendarDate, currency, dateKey } from '../utils/presentation';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, ArcElement, Tooltip);
 
-// Optimization: Define static options outside component render scope to preserve object reference equality across re-renders
-// Prevents react-chartjs-2 from triggering unnecessary chart options re-processing and canvas re-renders
-const chartOptions = {
+const commonOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  animation: false,
   plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        padding: 20,
-        usePointStyle: true,
-        font: {
-          size: 12,
-          weight: '600',
-        },
-      },
-    },
     tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      titleColor: '#fff',
-      bodyColor: '#fff',
-      borderColor: '#667eea',
-      borderWidth: 1,
-      cornerRadius: 8,
-      displayColors: true,
-      callbacks: {
-        label: function(context) {
-          return `${context.label}: €${Number(context.raw).toFixed(2)}`;
-        }
-      }
+      callbacks: { label: context => currency(context.raw) },
     },
   },
 };
 
 const lineOptions = {
-  ...chartOptions,
+  ...commonOptions,
   scales: {
-    y: {
-      beginAtZero: true,
-      grid: {
-        color: 'rgba(0, 0, 0, 0.1)',
-      },
-      ticks: {
-        callback: function(value) {
-          return '€' + value.toFixed(0);
-        }
-      }
-    },
-    x: {
-      grid: {
-        color: 'rgba(0, 0, 0, 0.1)',
-      },
-    },
+    y: { beginAtZero: true, ticks: { callback: value => currency(value) } },
+    x: { grid: { display: false } },
   },
 };
 
-const ExpenseChart = ({ data, recentExpenses }) => {
-  // Optimization: Memoize doughnut dataset construction to avoid map iterations and object allocations on every render
-  const doughnutData = useMemo(() => {
-    if (!data || !Array.isArray(data)) {
-      return { labels: [], datasets: [] };
-    }
-    return {
-      labels: data.map(item => item.category || 'Other'),
-      datasets: [
-        {
-          label: 'Expenses by Category',
-          data: data.map(item => parseFloat(item.total) || 0),
-          backgroundColor: data.map(item => item.color || '#667eea'),
-          borderColor: '#fff',
-          borderWidth: 3,
-          hoverBorderWidth: 5,
-        },
-      ],
-    };
-  }, [data]);
-
-  // Optimization: Memoize line dataset construction to prevent expensive Date conversions on every re-render
-  const lineData = useMemo(() => {
-    if (!recentExpenses || !Array.isArray(recentExpenses)) {
-      return { labels: [], datasets: [] };
-    }
-    return {
-      labels: recentExpenses.map(item => {
-        try {
-          return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } catch {
-          return item.date;
-        }
-      }),
-      datasets: [
-        {
-          label: 'Daily Expenses',
-          data: recentExpenses.map(item => parseFloat(item.total) || 0),
-          borderColor: '#667eea',
-          backgroundColor: 'rgba(102, 126, 234, 0.1)',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: '#667eea',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-        },
-      ],
-    };
+function ExpenseChart({ data, recentExpenses }) {
+  const categories = useMemo(() => data.filter(row => Number(row.total) > 0), [data]);
+  const days = useMemo(() => {
+    const now = new Date();
+    const byDate = new Map(recentExpenses.map(item => [item.date.slice(0, 10), Number(item.total)]));
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6 + index));
+      return { date, total: byDate.get(date) || 0 };
+    });
   }, [recentExpenses]);
+  const doughnut = useMemo(() => ({
+    labels: categories.map(row => row.category),
+    datasets: [{
+      data: categories.map(row => Number(row.total)),
+      backgroundColor: categories.map(row => row.color || '#14785f'),
+      borderColor: '#fff',
+      borderWidth: 2,
+    }],
+  }), [categories]);
+  const trend = useMemo(() => ({
+    labels: days.map(day => calendarDate(day.date, { day: 'numeric', month: 'short' })),
+    datasets: [{
+      data: days.map(day => day.total),
+      borderColor: '#14785f',
+      backgroundColor: '#e0f2ea',
+      fill: true,
+      tension: 0.25,
+    }],
+  }), [days]);
 
-  if (!data || data.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '20px' }}>📊</div>
-        <h3>No data to display</h3>
-        <p>Add some expenses to see your analytics!</p>
-      </div>
-    );
+  if (!categories.length && !days.some(day => day.total)) {
+    return <p className="empty">No EUR spending to chart yet.</p>;
   }
 
   return (
-    <div style={{ height: '400px', position: 'relative' }}>
-      {data.length > 0 && (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1, marginBottom: '20px' }}>
-            <h4 style={{ textAlign: 'center', marginBottom: '15px', color: '#333' }}>
-              💰 Expenses by Category
-            </h4>
-            <div style={{ position: 'relative', height: '165px' }}>
-              <Doughnut data={doughnutData} options={chartOptions} />
-            </div>
+    <div className="charts">
+      {categories.length > 0 && (
+        <div>
+          <h3>This month by category</h3>
+          <div className="chart-canvas">
+            <Doughnut role="img" aria-label="Current month spending by category" data={doughnut} options={commonOptions} />
           </div>
-          
-          {recentExpenses && recentExpenses.length > 0 && (
-            <div style={{ height: '200px', marginTop: '20px' }}>
-              <h4 style={{ textAlign: 'center', marginBottom: '15px', color: '#333' }}>
-                📈 7-Day Trend
-              </h4>
-              <div style={{ position: 'relative', height: '160px' }}>
-                <Line data={lineData} options={lineOptions} />
-              </div>
-            </div>
-          )}
+          <ul className="category-list chart-legend">
+            {categories.map(row => (
+              <li key={row.category_id ?? "uncategorized"}>
+                <span className="color-dot" aria-hidden="true" style={{ backgroundColor: row.color || '#14785f' }} />
+                <span>{row.category}</span><strong>{currency(row.total)}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {days.some(day => day.total) && (
+        <div>
+          <h3>Last 7 days</h3>
+          <div className="chart-canvas">
+            <Line role="img" aria-label="Daily spending over the last seven days" data={trend} options={lineOptions} />
+          </div>
+          <details>
+            <summary>Show daily amounts</summary>
+            <ul className="category-list chart-legend">
+              {days.map(day => <li key={day.date}><span>{calendarDate(day.date, { day: 'numeric', month: 'short' })}</span><strong>{currency(day.total)}</strong></li>)}
+            </ul>
+          </details>
         </div>
       )}
     </div>
   );
-};
+}
 
-// Optimization: Wrap component with React.memo to prevent unnecessary component re-renders when parent state updates
 export default React.memo(ExpenseChart);
