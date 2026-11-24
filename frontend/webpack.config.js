@@ -33,7 +33,6 @@ module.exports = {
     }),
     new webpack.DefinePlugin({
       'process.env.REACT_APP_API_URL': JSON.stringify(process.env.REACT_APP_API_URL || '/api'),
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     }),
   ],
   devServer: {
@@ -41,16 +40,16 @@ module.exports = {
       directory: path.join(__dirname, 'public'),
     },
     compress: true,
-    port: 3000,
+    port: Number(process.env.PORT || 3000),
     historyApiFallback: true,
     proxy: [
       {
         context: ['/api'],
-        target: 'http://localhost:3001',
+        target: process.env.BACKEND_URL || 'http://127.0.0.1:3001',
         changeOrigin: true,
       },
     ],
-    onBeforeSetupMiddleware: function (devServer) {
+    setupMiddlewares: function (middlewares, devServer) {
       devServer.app.get('/health', (req, res) => {
         res.json({
           status: 'ok',
@@ -60,6 +59,7 @@ module.exports = {
           environment: process.env.NODE_ENV || 'development'
         });
       });
+      return middlewares;
     },
   },
   resolve: {

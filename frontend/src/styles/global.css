@@ -66,6 +66,13 @@ body {
   gap: 8px;
 }
 
+.btn:focus-visible,
+.form-input:focus-visible,
+.form-select:focus-visible {
+  outline: 3px solid #764ba2;
+  outline-offset: 3px;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -179,6 +186,8 @@ body {
 
 .expense-item {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   padding: 20px;
@@ -187,6 +196,22 @@ body {
   border-radius: 12px;
   margin-bottom: 15px;
   transition: all 0.3s ease;
+}
+
+.expense-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  color: #fff;
+  background-color: #b42318;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .expense-item:hover {

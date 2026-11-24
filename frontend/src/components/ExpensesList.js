@@ -1,7 +1,11 @@
 import React, { useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
-const ExpensesList = ({ expenses, categories, showAll = false }) => {
+const FALLBACK_CATEGORY = { name: 'Other', color: '#AED6F1' };
+
+const ExpensesList = ({
+  expenses, categories, showAll = false, onAddExpense, onEditExpense, onDeleteExpense, actionsDisabled,
+}) => {
   // Optimization: Map category lookup by ID in O(1) time instead of O(M) Array.find on every expense item
   // Reduces overall rendering time complexity from O(N * M) to O(N + M)
   const categoryMap = useMemo(() => {
@@ -17,19 +21,19 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
       <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
         <div style={{ fontSize: '3rem', marginBottom: '20px' }}>💸</div>
         <h3>No expenses yet</h3>
-        <p>Start by adding your first expense!</p>
+        <p style={{ marginBottom: '15px' }}>Start by adding your first expense!</p>
+        {onAddExpense && (
+          <button className="btn btn-primary" onClick={onAddExpense}>
+            ➕ Add Your First Expense
+          </button>
+        )}
       </div>
     );
   }
 
-  const getCategoryInfo = (categoryId) => {
-    const category = categoryMap.get(categoryId);
-    return category || { name: 'Other', color: '#AED6F1', icon: 'category' };
-  };
-
   const formatDate = (dateString) => {
     try {
-      return format(new Date(dateString), 'MMM dd, yyyy');
+      return format(parseISO(dateString.slice(0, 10)), 'MMM dd, yyyy');
     } catch {
       return dateString;
     }
@@ -38,12 +42,12 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
   const displayExpenses = showAll ? expenses : expenses.slice(0, 5);
 
   return (
-    <div className="expenses-list">
+    <div className="expenses-list" role="list" aria-label={showAll ? "All expenses" : "Recent expenses"}>
       {displayExpenses.map((expense) => {
-        const category = getCategoryInfo(expense.category_id);
+        const category = categoryMap.get(expense.category_id) || FALLBACK_CATEGORY;
         
         return (
-          <div key={expense.id} className="expense-item">
+          <div key={expense.id} className="expense-item" role="listitem">
             <div className="expense-info">
               <div className="expense-description">
                 {expense.description || 'No description'}
@@ -55,14 +59,25 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
                 >
                   {category.name}
                 </span>
-                <span style={{ marginLeft: '15px', color: '#999' }}>
-                  📅 {formatDate(expense.expense_date)}
+                <span style={{ marginLeft: '15px', color: '#595959' }}>
+                  <span aria-hidden="true">📅</span> {formatDate(expense.expense_date)}
                 </span>
               </div>
             </div>
             <div className="expense-amount">
-              €{parseFloat(expense.amount).toFixed(2)}
+              {new Intl.NumberFormat('en', { style: 'currency', currency: expense.currency || 'EUR' })
+                .format(Number(expense.amount))}
             </div>
+            {onEditExpense && onDeleteExpense && (
+              <div className="expense-actions">
+                <button className="btn btn-warning" onClick={() => onEditExpense(expense)} disabled={actionsDisabled}>
+                  Edit
+                </button>
+                <button className="btn btn-danger" onClick={() => onDeleteExpense(expense)} disabled={actionsDisabled}>
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
@@ -70,4 +85,4 @@ const ExpensesList = ({ expenses, categories, showAll = false }) => {
   );
 };
 
-export default ExpensesList;
+export default React.memo(ExpensesList);

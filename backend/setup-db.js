@@ -1,11 +1,15 @@
+require('dotenv').config();
 const db = require('./config/database');
 
 const createTables = async () => {
+  const client = await db.pool.connect();
   try {
+    await client.query('BEGIN');
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('expense_tracker_setup'))");
     console.log('🔨 Creating expense tracker database tables...');
 
     // Create users table
-    await db.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -19,7 +23,7 @@ const createTables = async () => {
     console.log('✅ Users table created');
 
     // Create categories table
-    await db.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -33,7 +37,7 @@ const createTables = async () => {
     console.log('✅ Categories table created');
 
     // Create expenses table
-    await db.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS expenses (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -50,7 +54,7 @@ const createTables = async () => {
     console.log('✅ Expenses table created');
 
     // Create budgets table
-    await db.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS budgets (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -64,7 +68,7 @@ const createTables = async () => {
     console.log('✅ Budgets table created');
 
     // Create recurring_expenses table
-    await db.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS recurring_expenses (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -81,9 +85,9 @@ const createTables = async () => {
     console.log('✅ Recurring expenses table created');
 
     // Insert default categories
-    const categoriesResult = await db.query('SELECT COUNT(*) FROM categories WHERE is_default = true');
+    const categoriesResult = await client.query('SELECT COUNT(*) FROM categories WHERE is_default = true');
     if (parseInt(categoriesResult.rows[0].count) === 0) {
-      await db.query(`
+      await client.query(`
         INSERT INTO categories (name, color, icon, is_default) VALUES
         ('Food & Dining', '#FF6B6B', 'restaurant', TRUE),
         ('Transportation', '#4ECDC4', 'directions_car', TRUE),
@@ -101,19 +105,26 @@ const createTables = async () => {
     }
 
     // Create indexes
-    await db.query('CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)');
-    await db.query('CREATE INDEX IF NOT EXISTS idx_expenses_category_id ON expenses(category_id)');
-    await db.query('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date)');
-    await db.query('CREATE INDEX IF NOT EXISTS idx_budgets_user_id ON budgets(user_id)');
-    await db.query('CREATE INDEX IF NOT EXISTS idx_recurring_expenses_user_id ON recurring_expenses(user_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_expenses_category_id ON expenses(category_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_budgets_user_id ON budgets(user_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_recurring_expenses_user_id ON recurring_expenses(user_id)');
     console.log('✅ Indexes created');
 
+    await client.query('COMMIT');
     console.log('\n🎉 Database setup completed successfully!');
-    process.exit(0);
   } catch (error) {
-    console.error('❌ Error setting up database:', error);
-    process.exit(1);
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 };
 
-createTables();
+createTables()
+  .catch(error => {
+    console.error('❌ Error setting up database:', error);
+    process.exitCode = 1;
+  })
+  .finally(() => db.pool.end());
