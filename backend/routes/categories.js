@@ -21,10 +21,13 @@ router.get('/', async (req, res) => {
 // POST /api/categories - Create a new category
 router.post('/', async (req, res) => {
   try {
-    const { name, color, icon, user_id } = req.body;
+    const { name, color, icon, user_id } = req.body || {};
     
-    if (!name) {
-      return res.status(400).json({ error: 'Name is required' });
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
+      return res.status(400).json({ error: 'Enter a category name with up to 100 characters' });
+    }
+    if (color != null && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) {
+      return res.status(400).json({ error: 'Enter a valid category color' });
     }
 
     const query = `
@@ -33,7 +36,7 @@ router.post('/', async (req, res) => {
       RETURNING *
     `;
     
-    const result = await db.query(query, [name, color, icon, user_id]);
+    const result = await db.query(query, [name.trim(), color, icon, user_id]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating category:', err);

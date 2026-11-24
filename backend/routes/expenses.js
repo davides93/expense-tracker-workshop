@@ -2,30 +2,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
-const MAX_ID = 2147483647;
+const { MAX_ID, integer, validId, validDate } = require('../utils/validation');
+
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
-
-function integer(value) {
-  if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) {
-    return NaN;
-  }
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) ? parsed : NaN;
-}
-
-function validId(value) {
-  const id = integer(value);
-  return id > 0 && id <= MAX_ID;
-}
-
-function validDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000')) {
-    return false;
-  }
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
 
 function validReceiptUrl(value) {
   if (value == null || value === '') return true;

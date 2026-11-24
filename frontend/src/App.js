@@ -1,178 +1,154 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import ExpenseForm from './components/ExpenseForm';
-import { fetchExpenses, fetchCategories, fetchDashboardStats, deleteExpense } from './utils/api';
+import { fetchExpenses, fetchCategories, fetchDashboardStats } from './utils/api';
 
-const App = () => {
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [expenses, setExpenses] = useState([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [expenseError, setExpenseError] = useState(null);
-  const [notice, setNotice] = useState(null);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const Transactions = lazy(() => import('./pages/Transactions'));
+const Budgets = lazy(() => import('./pages/Budgets'));
+const Categories = lazy(() => import('./pages/Categories'));
+const Reports = lazy(() => import('./pages/Reports'));
 
-  const loadInitialData = useCallback(async () => {
+const navigation = [
+  ['dashboard', 'Overview'],
+  ['transactions', 'Transactions'],
+  ['budgets', 'Budgets'],
+  ['categories', 'Categories'],
+  ['reports', 'Reports'],
+];
+
+function currentPage() {
+  const route = window.location.hash.slice(1);
+  return route === 'expense' || navigation.some(([id]) => id === route) ? route : 'dashboard';
+}
+
+export default function App() {
+  const [page, setPage] = useState(currentPage);
+  const [visitedTransactions, setVisitedTransactions] = useState(page === 'transactions');
+  const [data, setData] = useState(null);
+  const [refreshing, setRefreshing] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [editor, setEditor] = useState({ expense: null, returnTo: 'dashboard' });
+  const [savingExpense, setSavingExpense] = useState(false);
+  const main = useRef(null);
+  const firstPage = useRef(true);
+  const refreshSequence = useRef(0);
+
+  const refreshOverview = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
+    setRefreshing(true);
+    setError('');
     try {
-      setLoading(true);
-      setError(null);
-      setExpenseError(null);
-      const [expensesData, categoriesData, statsData] = await Promise.all([
-        fetchExpenses(),
-        fetchCategories(),
-        fetchDashboardStats()
+      const [recent, categories, stats] = await Promise.all([
+        fetchExpenses({ limit: 5 }), fetchCategories(), fetchDashboardStats(),
       ]);
-      
-      setExpenses(expensesData.expenses || []);
-      setHasMore(expensesData.hasMore);
-      setCategories(categoriesData || []);
-      setDashboardStats(statsData || {});
-    } catch (err) {
-      setError('Failed to load data. Please try again.');
-      console.error('Error loading initial data:', err);
+      if (sequence === refreshSequence.current) {
+        setData({ expenses: recent.expenses, categories, stats, revision: sequence });
+      }
+    } catch {
+      if (sequence === refreshSequence.current) setError('We couldn’t load the latest data. Try refreshing.');
     } finally {
-      setLoading(false);
+      if (sequence === refreshSequence.current) setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
+    refreshOverview();
+    const syncRoute = () => {
+      setPage(currentPage());
+      setNotice('');
+    };
+    window.addEventListener('hashchange', syncRoute);
+    return () => window.removeEventListener('hashchange', syncRoute);
+  }, [refreshOverview]);
 
-  const handleLoadMore = async () => {
-    setLoadingMore(true);
-    setExpenseError(null);
-    try {
-      const page = await fetchExpenses({ offset: expenses.length });
-      setExpenses(previous => [...previous, ...page.expenses]);
-      setHasMore(page.hasMore);
-    } catch (err) {
-      setExpenseError('Failed to load more expenses. Please try again.');
-    } finally {
-      setLoadingMore(false);
+  useEffect(() => {
+    if (page === 'transactions') setVisitedTransactions(true);
+    if (firstPage.current) {
+      firstPage.current = false;
+      return;
     }
+    main.current?.focus();
+    window.scrollTo(0, 0);
+  }, [page]);
+
+  const navigate = destination => {
+    if (destination === page) return;
+    window.history.pushState(null, '', '#' + destination);
+    setPage(destination);
+    setNotice('');
   };
 
-  const openExpenseForm = useCallback(expense => {
-    setNotice(null);
-    setEditingExpense(expense);
-    setCurrentView('add-expense');
-  }, []);
-  const openNewExpense = () => openExpenseForm(null);
+  const startExpense = (expense = null) => {
+    if (savingExpense) return;
+    setEditor({ expense, returnTo: page === 'expense' ? editor.returnTo : page });
+    navigate('expense');
+  };
 
-  const handleDelete = useCallback(async expense => {
-    if (!window.confirm('Delete this expense?')) return;
-    setDeletingId(expense.id);
-    setExpenseError(null);
-    try {
-      await deleteExpense(expense.id);
-      await loadInitialData();
-      setNotice('Expense deleted.');
-    } catch (err) {
-      setExpenseError('Failed to delete the expense. Please try again.');
-    } finally {
-      setDeletingId(null);
-    }
-  }, [loadInitialData]);
-
-  const handleExpenseSaved = async message => {
-    await loadInitialData();
-    setCurrentView('dashboard');
+  const expenseSaved = async message => {
+    if (currentPage() === 'expense') navigate(editor.returnTo);
     setNotice(message);
+    await refreshOverview();
   };
-
-  if (loading) {
-    return (
-      <div className="loading">
-        <div>💰 Loading your expense tracker...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container">
-        <div className="error">
-          <h2>❌ {error}</h2>
-          <button className="btn btn-primary" onClick={loadInitialData}>
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="app">
-      <header className="header">
-        <div className="container">
-          <h1>💰 Expense Tracker</h1>
-          <p>Modern Financial Management Made Simple</p>
-        </div>
-      </header>
+    <div className="workspace">
+      <a className="skip-link" href="#main-content" onClick={event => {
+        event.preventDefault();
+        main.current?.focus();
+      }}>Skip to content</a>
+      <aside className="sidebar">
+        <a className="brand" href="#dashboard"><span className="brand-mark" aria-hidden="true">ET</span> Expense Tracker</a>
+        <nav aria-label="Main navigation">
+          {navigation.map(([id, label]) => (
+            <a href={'#' + id} key={id} aria-current={page === id ? 'page' : undefined}>{label}</a>
+          ))}
+        </nav>
+      </aside>
 
-      <nav className="container" aria-label="Main navigation">
-        <div className="card">
-          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button 
-              className={`btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-warning'}`}
-              onClick={() => setCurrentView('dashboard')}
-              aria-current={currentView === 'dashboard' ? 'page' : undefined}
-            >
-              📊 Dashboard
+      <div className="work-area">
+        <header className="toolbar">
+          <div className="actions">
+            <button type="button" className="btn btn-secondary" onClick={refreshOverview}
+              disabled={refreshing || savingExpense} aria-label="Refresh expense data">
+              {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
-            <button 
-              className={`btn ${currentView === 'add-expense' ? 'btn-primary' : 'btn-success'}`}
-              onClick={openNewExpense}
-              aria-current={currentView === 'add-expense' ? 'page' : undefined}
-            >
-              ➕ Add Expense
-            </button>
-            <button 
-              className="btn btn-warning"
-              onClick={loadInitialData}
-              disabled={loadingMore || deletingId !== null}
-              aria-label="Refresh expense data"
-            >
-              🔄 Refresh
-            </button>
+            {page !== 'expense' && <button type="button" className="btn btn-primary" onClick={() => startExpense()}
+              disabled={!data || savingExpense}>
+              <span aria-hidden="true">+</span> Add expense
+            </button>}
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <main className="container">
-        {currentView === 'dashboard' && notice && <p className="success" role="status">{notice}</p>}
-        {currentView === 'dashboard' && (
-          <Dashboard 
-            expenses={expenses}
-            categories={categories}
-            dashboardStats={dashboardStats}
-            onAddExpense={openNewExpense}
-            onEditExpense={openExpenseForm}
-            onDeleteExpense={handleDelete}
-            actionsDisabled={loadingMore || deletingId !== null}
-            onLoadMore={hasMore ? handleLoadMore : undefined}
-            loadingMore={loadingMore}
-            expenseError={expenseError}
-          />
-        )}
-        
-        {currentView === 'add-expense' && (
-          <ExpenseForm
-            key={editingExpense?.id ?? 'new'}
-            expense={editingExpense}
-            categories={categories}
-            onExpenseSaved={handleExpenseSaved}
-          />
-        )}
-      </main>
+        <main className="content" id="main-content" tabIndex={-1} ref={main}>
+          {notice && <p className="success" role="status">{notice}</p>}
+          {error && (
+            <div className="error" role="alert">
+              <p>{error}</p>
+              <button className="btn btn-secondary" onClick={refreshOverview}>Try again</button>
+            </div>
+          )}
+
+          {!data && refreshing && <p className="card" role="status">Loading expense tracker…</p>}
+          <Suspense fallback={<p className="card" role="status">Loading page…</p>}>
+            {data && page === 'dashboard' && (
+              <Dashboard {...data} onAddExpense={() => startExpense()} />
+            )}
+            {data && (visitedTransactions || page === 'transactions') && <div hidden={page !== 'transactions'}>
+              <Transactions active={page === 'transactions'} revision={data.revision} categories={data.categories}
+                onAdd={() => startExpense()} onEdit={startExpense} onChanged={refreshOverview} />
+            </div>}
+            {data && page === 'expense' && (
+              <ExpenseForm key={editor.expense?.id ?? 'new'} expense={editor.expense}
+                categories={data.categories} onExpenseSaved={expenseSaved}
+                onCancel={() => navigate(editor.returnTo)} onSaving={setSavingExpense} />
+            )}
+            {data && page === 'budgets' && <Budgets categories={data.categories} onChanged={refreshOverview} revision={data.revision} />}
+            {data && page === 'categories' && <Categories categories={data.categories} onChanged={refreshOverview} />}
+            {data && page === 'reports' && <Reports revision={data.revision} />}
+          </Suspense>
+        </main>
+      </div>
     </div>
   );
-};
-
-export default App;
+}

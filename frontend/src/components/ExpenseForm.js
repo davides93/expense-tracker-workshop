@@ -1,189 +1,86 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
 import { createExpense, updateExpense } from '../utils/api';
+import { dateKey, responseMessage } from '../utils/presentation';
 
-const ExpenseForm = ({ categories, expense, onExpenseSaved }) => {
-  const [formData, setFormData] = useState({
+export default function ExpenseForm({ categories, expense, onExpenseSaved, onCancel, onSaving }) {
+  const [form, setForm] = useState(() => ({
     amount: expense?.amount ?? '',
-    currency: expense?.currency ?? 'EUR',
+    currency: expense?.currency || 'EUR',
     description: expense?.description ?? '',
-    expense_date: expense?.expense_date?.slice(0, 10) ?? format(new Date(), 'yyyy-MM-dd'),
+    expense_date: expense?.expense_date?.slice(0, 10) ?? dateKey(),
     category_id: expense?.category_id ?? '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+    receipt_url: expense?.receipt_url ?? '',
+  }));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const currencies = [...new Set(['EUR', 'USD', 'GBP', form.currency])];
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
-    if (error) setError(null);
+  const change = event => {
+    const { name, value } = event.target;
+    setForm(previous => ({ ...previous, [name]: value }));
+    setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Basic validation
-    if (!formData.amount || !formData.expense_date) {
-      setError('Amount and date are required');
-      return;
-    }
-
-    if (parseFloat(formData.amount) <= 0) {
-      setError('Amount must be greater than 0');
-      return;
-    }
-
+  const submit = async event => {
+    event.preventDefault();
+    setSaving(true);
+    onSaving(true);
+    setError('');
     try {
-      setLoading(true);
-      setError(null);
-      
       const payload = {
-        ...formData,
-        amount: Number(formData.amount),
-        category_id: formData.category_id ? Number(formData.category_id) : null,
+        ...form, amount: Number(form.amount), category_id: Number(form.category_id) || null,
+        receipt_url: form.receipt_url.trim() || null,
       };
-      if (expense) {
-        await updateExpense(expense.id, { ...payload, receipt_url: expense.receipt_url });
-      } else {
-        await createExpense(payload);
-      }
+      if (expense) await updateExpense(expense.id, payload);
+      else await createExpense(payload);
       await onExpenseSaved(expense ? 'Expense updated.' : 'Expense added.');
-    } catch (err) {
-      setError(err.response?.status === 400
-        ? err.response.data.error
-        : 'Failed to save expense. Please try again.');
+    } catch (requestError) {
+      setError(responseMessage(requestError, 'We couldn’t save the expense. Your entries are still here.'));
     } finally {
-      setLoading(false);
+      setSaving(false);
+      onSaving(false);
     }
   };
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h2 className="card-title">{expense ? 'Edit Expense' : '➕ Add New Expense'}</h2>
-        <span style={{ color: '#666', fontSize: '0.9rem' }}>
-          Track your spending with detailed information
-        </span>
-      </div>
-
-      {error && (
-        <div className="error" role="alert">
-          ❌ {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-2">
-          <div className="form-group">
-            <label className="form-label" htmlFor="amount">💰 Amount *</label>
-            <input
-              id="amount"
-              type="number"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              className="form-input"
-              placeholder="0.00"
-              step="0.01"
-              min="0.01"
-              max="99999999.99"
-              required
-            />
+    <>
+      <header className="page-heading"><h1>{expense ? 'Edit expense' : 'Add expense'}</h1></header>
+      <form className="card editor" onSubmit={submit} aria-busy={saving}>
+        {error && <p className="error" role="alert">{error}</p>}
+        <fieldset disabled={saving}>
+          <div className="form-grid">
+            <label>Amount (required)
+              <input className="form-input" type="number" name="amount" value={form.amount} onChange={change}
+                min="0.01" max="99999999.99" step="0.01" inputMode="decimal" required />
+            </label>
+            <label>Currency
+              <select className="form-select" name="currency" value={form.currency} onChange={change}>
+                {currencies.map(code => <option key={code}>{code}</option>)}
+              </select>
+            </label>
+            <label>Date (required)
+              <input className="form-input" type="date" name="expense_date" value={form.expense_date} onChange={change} required />
+            </label>
+            <label>Category
+              <select className="form-select" name="category_id" value={form.category_id} onChange={change}>
+                <option value="">Uncategorized</option>
+                {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+            </label>
           </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="currency">💱 Currency</label>
-            <select
-              id="currency"
-              name="currency"
-              value={formData.currency}
-              onChange={handleChange}
-              className="form-select"
-            >
-              <option value="EUR">EUR (€)</option>
-              <option value="USD">USD ($)</option>
-              <option value="GBP">GBP (£)</option>
-              {expense?.currency && !['EUR', 'USD', 'GBP'].includes(expense.currency) && (
-                <option value={expense.currency}>{expense.currency}</option>
-              )}
-            </select>
+          <label>Description
+            <input className="form-input" name="description" value={form.description} onChange={change} />
+          </label>
+          <label>Receipt link (optional)
+            <input className="form-input" type="url" name="receipt_url" value={form.receipt_url} onChange={change}
+              placeholder="https://" maxLength={500} />
+          </label>
+          <div className="actions form-actions">
+            <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
+            <button className="btn btn-primary">{saving ? 'Saving…' : expense ? 'Save changes' : 'Save expense'}</button>
           </div>
-        </div>
-
-        <div className="grid grid-2">
-          <div className="form-group">
-            <label className="form-label" htmlFor="expense_date">📅 Date *</label>
-            <input
-              id="expense_date"
-              type="date"
-              name="expense_date"
-              value={formData.expense_date}
-              onChange={handleChange}
-              className="form-input"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="category_id">🏷️ Category</label>
-            <select
-              id="category_id"
-              name="category_id"
-              value={formData.category_id}
-              onChange={handleChange}
-              className="form-select"
-            >
-              <option value="">Select a category</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label" htmlFor="description">📝 Description</label>
-          <input
-            id="description"
-            type="text"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="What did you spend money on?"
-          />
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '30px' }}>
-          <button
-            type="submit"
-            className="btn btn-success"
-            disabled={loading}
-            aria-busy={loading}
-            style={{ fontSize: '1.1rem', padding: '15px 40px' }}
-          >
-            {loading ? 'Saving…' : expense ? 'Save Changes' : '✅ Add Expense'}
-          </button>
-        </div>
+        </fieldset>
       </form>
-
-      <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '12px' }}>
-        <h4 style={{ marginBottom: '15px', color: '#333' }}>💡 Quick Tips:</h4>
-        <ul style={{ color: '#666', lineHeight: '1.8' }}>
-          <li>• Be specific in your descriptions for better tracking</li>
-          <li>• Choose the right category to get accurate insights</li>
-          <li>• Record expenses as soon as possible to avoid forgetting</li>
-          <li>• Use the correct date if you're adding a past expense</li>
-        </ul>
-      </div>
-    </div>
+    </>
   );
-};
-
-export default ExpenseForm;
+}

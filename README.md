@@ -115,3 +115,20 @@ The .NET Aspire setup provides:
 - Production-ready deployment patterns
 
 For detailed Aspire configuration, see [README-aspire.md](README-aspire.md).
+
+## Workshop workflows
+
+Use **Transactions** to review expenses, filter by date or category, and export
+the matching records as CSV. Its add and edit form accepts an optional HTTP or
+HTTPS receipt link. Use **Categories** to create categories and **Budgets** to
+create, revise or remove spending limits. **Reports** shows the last 12 calendar
+months, supports printing or saving to PDF from the browser, and can export all
+recorded expenses as CSV. Exports retain each expense's original currency.
+Dashboards, budgets and monthly report totals use EUR expenses.
+
+The UI uses the existing budget collection at `/api/budgets`. To revise a
+budget, `PUT /api/budgets/:id` accepts `amount`, `period_start` and `period_end`,
+plus an optional `category_id` (null for all categories). It returns the updated
+record and preserves its existing owner. `DELETE /api/budgets/:id` returns
+`204 No Content`. An invalid ID or payload returns `400`, and an unknown
+budget returns `404`.
