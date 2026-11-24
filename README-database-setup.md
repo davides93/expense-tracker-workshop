@@ -1,6 +1,9 @@
 # Expense Tracker Database Setup Guide
 
-This guide provides multiple ways to set up the PostgreSQL database for the Expense Tracker application.
+For the web application, create an empty PostgreSQL database and run
+`backend/setup-db.js` as described in the [application quick start](README.md#initialize-postgresql-and-install-dependencies).
+The root schema and seed SQL scripts are retail workshop exercises. Use a separate
+database for those exercises.
 
 ## 🐳 Dev Container Setup (Recommended)
 
@@ -140,13 +143,14 @@ GRANT ALL ON SCHEMA public TO expense_user;
 ### 2. Run the Schema Creation Script
 ```bash
 # From your project directory
-psql -d expense_tracker -f 01-create-schema.sql
+npm --prefix backend ci
+(cd backend && node setup-db.js)
 ```
 
 ### 3. Populate with Sample Data
 ```bash
 # Run the data population script
-psql -d expense_tracker -f 02-populate-data.sql
+(cd backend && node add-sample-data.js)
 ```
 
 ### 4. Test with Sample Queries

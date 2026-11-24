@@ -1,3 +1,4 @@
+const path = require('node:path');
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -11,8 +12,23 @@ const statsRoutes = require('./routes/stats');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Security: Restrict CORS origin to trusted domains instead of allowing wildcard origins (*)
+const corsOptions = {
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '0',
+  });
+  next();
+});
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -58,6 +74,12 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/stats', statsRoutes);
+
+// Serve the production frontend from the same origin when it is built.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

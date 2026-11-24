@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { createExpense } from '../utils/api';
+import { format } from 'date-fns';
+import { createExpense, updateExpense } from '../utils/api';
 
-const ExpenseForm = ({ categories, onExpenseAdded }) => {
+const ExpenseForm = ({ categories, expense, onExpenseSaved }) => {
   const [formData, setFormData] = useState({
-    amount: '',
-    currency: 'EUR',
-    description: '',
-    expense_date: new Date().toISOString().split('T')[0],
-    category_id: '',
+    amount: expense?.amount ?? '',
+    currency: expense?.currency ?? 'EUR',
+    description: expense?.description ?? '',
+    expense_date: expense?.expense_date?.slice(0, 10) ?? format(new Date(), 'yyyy-MM-dd'),
+    category_id: expense?.category_id ?? '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,60 +41,30 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
       setLoading(true);
       setError(null);
       
-      await createExpense({
+      const payload = {
         ...formData,
-        amount: parseFloat(formData.amount),
-        category_id: formData.category_id ? parseInt(formData.category_id) : null,
-      });
-      
-      setSuccess(true);
-      setFormData({
-        amount: '',
-        currency: 'EUR',
-        description: '',
-        expense_date: new Date().toISOString().split('T')[0],
-        category_id: '',
-      });
-      
-      // Call parent callback
-      if (onExpenseAdded) {
-        setTimeout(() => {
-          onExpenseAdded();
-        }, 1500);
+        amount: Number(formData.amount),
+        category_id: formData.category_id ? Number(formData.category_id) : null,
+      };
+      if (expense) {
+        await updateExpense(expense.id, { ...payload, receipt_url: expense.receipt_url });
+      } else {
+        await createExpense(payload);
       }
-      
+      await onExpenseSaved(expense ? 'Expense updated.' : 'Expense added.');
     } catch (err) {
-      setError('Failed to add expense. Please try again.');
-      console.error('Error creating expense:', err);
+      setError(err.response?.status === 400
+        ? err.response.data.error
+        : 'Failed to save expense. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="card">
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '20px' }}>✅</div>
-          <h2 style={{ color: '#27ae60', marginBottom: '10px' }}>Expense Added Successfully!</h2>
-          <p style={{ color: '#666', marginBottom: '30px' }}>
-            Your expense has been recorded and will appear in your dashboard.
-          </p>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => setSuccess(false)}
-          >
-            Add Another Expense
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="card">
       <div className="card-header">
-        <h2 className="card-title">➕ Add New Expense</h2>
+        <h2 className="card-title">{expense ? 'Edit Expense' : '➕ Add New Expense'}</h2>
         <span style={{ color: '#666', fontSize: '0.9rem' }}>
           Track your spending with detailed information
         </span>
@@ -119,7 +89,8 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
               className="form-input"
               placeholder="0.00"
               step="0.01"
-              min="0"
+              min="0.01"
+              max="99999999.99"
               required
             />
           </div>
@@ -136,6 +107,9 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
               <option value="EUR">EUR (€)</option>
               <option value="USD">USD ($)</option>
               <option value="GBP">GBP (£)</option>
+              {expense?.currency && !['EUR', 'USD', 'GBP'].includes(expense.currency) && (
+                <option value={expense.currency}>{expense.currency}</option>
+              )}
             </select>
           </div>
         </div>
@@ -194,7 +168,7 @@ const ExpenseForm = ({ categories, onExpenseAdded }) => {
             aria-busy={loading}
             style={{ fontSize: '1.1rem', padding: '15px 40px' }}
           >
-            {loading ? '⏳ Adding...' : '✅ Add Expense'}
+            {loading ? 'Saving…' : expense ? 'Save Changes' : '✅ Add Expense'}
           </button>
         </div>
       </form>

@@ -10,12 +10,14 @@ router.get('/', async (req, res) => {
              COALESCE(spent.total, 0) as spent_amount
       FROM budgets b
       LEFT JOIN categories c ON b.category_id = c.id
-      LEFT JOIN (
-        SELECT category_id, SUM(amount) as total
-        FROM expenses 
-        WHERE expense_date >= CURRENT_DATE - INTERVAL '30 days'
-        GROUP BY category_id
-      ) spent ON b.category_id = spent.category_id
+      LEFT JOIN LATERAL (
+        SELECT SUM(e.amount) AS total
+        FROM expenses e
+        WHERE e.expense_date BETWEEN b.period_start AND b.period_end
+          AND (b.category_id IS NULL OR e.category_id = b.category_id)
+          AND (b.user_id IS NULL OR e.user_id = b.user_id)
+          AND COALESCE(e.currency, 'EUR') = 'EUR'
+      ) spent ON true
       ORDER BY b.created_at DESC
     `;
     

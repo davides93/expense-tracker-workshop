@@ -20,6 +20,8 @@ dotnet workload install aspire
 
 ### Run with Aspire
 
+Initialize PostgreSQL with the database steps below before starting Aspire.
+
 1. Install dependencies for both frontend and backend:
 ```bash
 # Backend dependencies
@@ -41,21 +43,46 @@ dotnet run
 
 You can also run the services independently:
 
-### Backend API
+### Initialize PostgreSQL and install dependencies
+
+Create an empty PostgreSQL database named `expense_tracker`. Export a
+connection string if your credentials differ from the local default
+(`postgresql://postgres:postgres@localhost:5432/expense_tracker`).
+
 ```bash
-cd backend
-npm install
-npm start
-# Runs on http://localhost:3001
+export DATABASE_URL='postgresql://postgres:postgres@localhost:5432/expense_tracker'
+npm --prefix backend ci
+npm --prefix frontend ci
+(cd backend && node setup-db.js)
 ```
 
-### Frontend
+The setup command creates the application tables and default categories. Set
+`DATABASE_URL` in the backend process environment or in `backend/.env`.
+For a remote database, configure TLS in the PostgreSQL connection string.
+
+### Development
+
+Run these commands in two terminals from the repository root.
+
 ```bash
-cd frontend
-npm install
-npm start
-# Runs on http://localhost:3000
+npm --prefix backend start
+npm --prefix frontend start
 ```
+
+Open http://localhost:3000. Webpack forwards API requests to the backend on port
+3001. Set `BACKEND_URL` for a different backend address. For direct requests
+from a browser on another origin, set `CLIENT_ORIGIN` on the backend.
+
+### Production build
+
+```bash
+npm --prefix frontend run build
+NODE_ENV=production npm --prefix backend start
+```
+
+Open http://localhost:3001. Express serves the compiled UI and API on the same
+origin. The workshop application uses a shared database and has no user
+authentication. Run it in a trusted environment.
 
 ## 📊 Architecture
 
